@@ -6,7 +6,7 @@
  */
 import { state, computed } from './state.js';
 import { SET2, hexToRgb, blueColor } from './colors.js';
-import { computeCone, convexHull, dot, barycentricOptimal } from './math.js';
+import { computeCone, convexHull, dot, barycentricOptimal, barycentricSuboptimal } from './math.js';
 
 
 /** Return the current barycentric start point in world coords, or null. */
@@ -96,17 +96,18 @@ function star(cx, cy, r) {
 
 // ── Main draw ─────────────────────────────────────────────────────────────────
 export function draw() {
-  const { X, r, w0, withCones, withField, withSim, withBary, withHull } = state;
+  const { X, r, w0, withCones, withField, withSim, withBary, withHull, withHullSub, withBarySub } = state;
   const n  = X.length;
   const sz = _logicalSize;
 
   ctx.clearRect(0, 0, sz, sz);
   ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, sz, sz);
 
-  // ── Precompute convex hull (used in basins clipping and hull drawing) ──────
+  // ── Precompute convex hulls ───────────────────────────────────────────────
   const maxR    = Math.max(...r);
   const optPts  = X.filter((_, i) => r[i] === maxR);
   const subIdxs = X.reduce((a, _, i) => r[i] !== maxR ? [...a,i] : a, []);
+  const subPts  = X.filter((_, i) => r[i] < maxR);
   let hullVerts = [], hullEdges = [];
   if (optPts.length >= 3) {
     hullVerts = convexHull(optPts);
@@ -117,6 +118,9 @@ export function draw() {
   } else if (optPts.length === 1) {
     hullVerts = optPts;
   }
+  let hullSubVerts = [];
+  if (subPts.length >= 3)      hullSubVerts = convexHull(subPts);
+  else if (subPts.length >= 1) hullSubVerts = subPts.slice();
 
   // Clip to plot area
   ctx.save();
@@ -170,7 +174,7 @@ export function draw() {
   if (withBary && computed.baryTraj?.length > 1) {
     const bt = computed.baryTraj.filter(Boolean);
     if (bt.length > 1) {
-      ctx.strokeStyle = '#c0392b'; ctx.lineWidth = 1.7;
+      ctx.strokeStyle = '#2980b9'; ctx.lineWidth = 1.7;
       ctx.globalAlpha = 0.7;
       ctx.beginPath();
       const [bx0,by0] = w2c(...bt[0]); ctx.moveTo(bx0,by0);
@@ -180,10 +184,31 @@ export function draw() {
 
       // Start point — open circle
       const [bx0c,by0c] = w2c(...bt[0]);
-      ctx.fillStyle='#fff'; ctx.strokeStyle='#c0392b'; ctx.lineWidth=1.5;
+      ctx.fillStyle='#fff'; ctx.strokeStyle='#2980b9'; ctx.lineWidth=1.5;
       ctx.beginPath(); ctx.arc(bx0c,by0c,4.5,0,2*Math.PI); ctx.fill(); ctx.stroke();
 
       // End point — filled circle
+      const last = bt[bt.length-1];
+      const [bxf,byf] = w2c(...last);
+      ctx.fillStyle='#2980b9'; ctx.strokeStyle='#222'; ctx.lineWidth=0.8;
+      ctx.beginPath(); ctx.arc(bxf,byf,5.5,0,2*Math.PI); ctx.fill(); ctx.stroke();
+    }
+  }
+
+  // ── Suboptimal barycentric trajectory x̄_t^- ──────────────────────────────
+  if (withBarySub && computed.barySubTraj?.length > 1) {
+    const bt = computed.barySubTraj.filter(Boolean);
+    if (bt.length > 1) {
+      ctx.strokeStyle = '#c0392b'; ctx.lineWidth = 1.7;
+      ctx.globalAlpha = 0.7;
+      ctx.beginPath();
+      const [bx0,by0] = w2c(...bt[0]); ctx.moveTo(bx0,by0);
+      for (let i=1;i<bt.length;i++) { const [bx,by]=w2c(...bt[i]); ctx.lineTo(bx,by); }
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+      const [bx0c,by0c] = w2c(...bt[0]);
+      ctx.fillStyle='#fff'; ctx.strokeStyle='#c0392b'; ctx.lineWidth=1.5;
+      ctx.beginPath(); ctx.arc(bx0c,by0c,4.5,0,2*Math.PI); ctx.fill(); ctx.stroke();
       const last = bt[bt.length-1];
       const [bxf,byf] = w2c(...last);
       ctx.fillStyle='#c0392b'; ctx.strokeStyle='#222'; ctx.lineWidth=0.8;
@@ -197,14 +222,14 @@ export function draw() {
     if (bs) {
       const [bx, by] = w2c(...bs);
       const d = 7;
-      ctx.fillStyle='white'; ctx.strokeStyle='#c0392b'; ctx.lineWidth=1.8;
+      ctx.fillStyle='white'; ctx.strokeStyle='#2980b9'; ctx.lineWidth=1.8;
       ctx.beginPath();
       ctx.moveTo(bx, by-d); ctx.lineTo(bx+d, by);
       ctx.lineTo(bx, by+d); ctx.lineTo(bx-d, by);
       ctx.closePath(); ctx.fill(); ctx.stroke();
       // Faint dashed line to w0 to visualise the coupling
       const [wx, wy] = w2c(...w0);
-      ctx.strokeStyle='rgba(192,57,43,0.28)'; ctx.lineWidth=1; ctx.setLineDash([2,3]);
+      ctx.strokeStyle='rgba(41,128,185,0.28)'; ctx.lineWidth=1; ctx.setLineDash([2,3]);
       ctx.beginPath(); ctx.moveTo(wx,wy); ctx.lineTo(bx,by); ctx.stroke();
       ctx.setLineDash([]);
     }
@@ -216,7 +241,7 @@ export function draw() {
 
     // Draw hull
     if (withHull && hullVerts.length >= 2) {
-      ctx.strokeStyle='rgba(192,57,43,0.65)'; ctx.lineWidth=1.6; ctx.setLineDash([4,3]);
+      ctx.strokeStyle='rgba(41,128,185,0.65)'; ctx.lineWidth=1.6; ctx.setLineDash([4,3]);
       ctx.beginPath();
       const [hx0,hy0]=w2c(...hullVerts[0]); ctx.moveTo(hx0,hy0);
       for (let i=1;i<hullVerts.length;i++){ const [hx,hy]=w2c(...hullVerts[i]); ctx.lineTo(hx,hy); }
@@ -283,6 +308,17 @@ export function draw() {
         }
       }
     }
+  }
+
+  // ── Convex hull of suboptimal actions conv(A\A*) ─────────────────────────
+  if (withHullSub && hullSubVerts.length >= 2) {
+    ctx.strokeStyle='rgba(192,57,43,0.65)'; ctx.lineWidth=1.6; ctx.setLineDash([4,3]);
+    ctx.beginPath();
+    const [hx0,hy0]=w2c(...hullSubVerts[0]); ctx.moveTo(hx0,hy0);
+    for (let i=1;i<hullSubVerts.length;i++){ const [hx,hy]=w2c(...hullSubVerts[i]); ctx.lineTo(hx,hy); }
+    if (hullSubVerts.length >= 3) ctx.closePath();
+    ctx.stroke();
+    ctx.setLineDash([]);
   }
 
   // ── PG trajectory ─────────────────────────────────────────────────────────

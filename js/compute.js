@@ -5,7 +5,7 @@
  * Field and cone data are computed synchronously (they're cheap: ~0.5 ms).
  */
 import { state, computed } from './state.js';
-import { computeField, barycentricOptimal, runTrajectory, softmax, dot } from './math.js';
+import { computeField, barycentricOptimal, barycentricSuboptimal, runTrajectory, softmax, dot } from './math.js';
 
 /** Max steps for the synchronous preview trajectory computed during drag. */
 const PREVIEW_STEPS = 4000;
@@ -51,6 +51,15 @@ function baryOpt(X,r,w){
   const lam=piO.map(p=>p/s);
   return [0,1].map(d=>lam.reduce((s,l,i)=>s+l*X[i][d],0));
 }
+function barySubOpt(X,r,w){
+  const pi=softmax(X.map(x=>dot(x,w)));
+  const mx=Math.max(...r);
+  const piS=pi.map((p,i)=>r[i]<mx?p:0);
+  const s=piS.reduce((a,b)=>a+b,0);
+  if(s<1e-30)return null;
+  const lam=piS.map(p=>p/s);
+  return [0,1].map(d=>lam.reduce((s,l,i)=>s+l*X[i][d],0));
+}
 function computeField(X,r,N){
   const pts=[];
   for(let i=0;i<N;i++) for(let j=0;j<N;j++){
@@ -61,7 +70,7 @@ function computeField(X,r,N){
   const mx=Math.max(...pts.map(p=>p.mag))+1e-12;
   return pts.map(p=>({...p,t:p.mag/mx}));
 }
-self.onmessage = function({data:{X,r,w0,lr,n_steps,withField,withBary,N}}){
+self.onmessage = function({data:{X,r,w0,lr,n_steps,withField,withBary,withBarySub,N}}){
   const field = withField ? computeField(X,r,N||22) : null;
   const traj  = runTraj(X,r,w0,lr,n_steps);
   let baryTraj = null;
@@ -71,7 +80,14 @@ self.onmessage = function({data:{X,r,w0,lr,n_steps,withField,withBary,N}}){
     const last=baryOpt(X,r,traj[traj.length-1]);
     if(last) baryTraj.push(last);
   }
-  self.postMessage({field,traj,baryTraj});
+  let barySubTraj = null;
+  if(withBarySub){
+    const stride=Math.max(1,Math.floor(traj.length/400));
+    barySubTraj=traj.filter((_,i)=>i%stride===0).map(w=>barySubOpt(X,r,w));
+    const last=barySubOpt(X,r,traj[traj.length-1]);
+    if(last) barySubTraj.push(last);
+  }
+  self.postMessage({field,traj,baryTraj,barySubTraj});
 };
 `;
 
@@ -113,9 +129,10 @@ export function requestCompute(cb) {
     w0:       state.w0.slice(),
     lr:       state.lr,
     n_steps:  state.n_steps,
-    withField: state.withField,
-    withBary:  state.withBary,
-    N:        22,
+    withField:   state.withField,
+    withBary:    state.withBary,
+    withBarySub: state.withBarySub,
+    N:           22,
   };
   if (_busy) {
     _queued = { params, cb };
@@ -137,12 +154,14 @@ export function syncField() {
  * The full computation is still dispatched to the worker afterwards.
  */
 export function syncTrajectory() {
-  if (!state.withSim) { computed.traj = null; computed.baryTraj = null; return; }
-  const { X, r, w0, lr, n_steps, withBary } = state;
+  if (!state.withSim) {
+    computed.traj = null; computed.baryTraj = null; computed.barySubTraj = null; return;
+  }
+  const { X, r, w0, lr, n_steps, withBary, withBarySub } = state;
   const steps = Math.min(n_steps, PREVIEW_STEPS);
   computed.traj = runTrajectory(X, r, w0, lr, steps, 600);
+  const stride = Math.max(1, Math.floor(computed.traj.length / 200));
   if (withBary) {
-    const stride = Math.max(1, Math.floor(computed.traj.length / 200));
     computed.baryTraj = computed.traj
       .filter((_, i) => i % stride === 0)
       .map(w => barycentricOptimal(X, r, w));
@@ -150,6 +169,15 @@ export function syncTrajectory() {
     if (last) computed.baryTraj.push(last);
   } else {
     computed.baryTraj = null;
+  }
+  if (withBarySub) {
+    computed.barySubTraj = computed.traj
+      .filter((_, i) => i % stride === 0)
+      .map(w => barycentricSuboptimal(X, r, w));
+    const last = barycentricSuboptimal(X, r, computed.traj[computed.traj.length - 1]);
+    if (last) computed.barySubTraj.push(last);
+  } else {
+    computed.barySubTraj = null;
   }
 }
 

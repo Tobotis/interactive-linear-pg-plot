@@ -32,6 +32,17 @@ export function barycentricOptimal(X, r, w) {
   return [0, 1].map(d => lam.reduce((s, l, i) => s + l * X[i][d], 0));
 }
 
+/** Barycentric coord of marginal over suboptimal actions in feature space. */
+export function barycentricSuboptimal(X, r, w) {
+  const pi    = softmax(X.map(x => dot(x, w)));
+  const maxR  = Math.max(...r);
+  const piSub = pi.map((p, i) => r[i] < maxR ? p : 0);
+  const piSum = piSub.reduce((a, b) => a + b, 0);
+  if (piSum < 1e-30) return null;
+  const lam = piSub.map(p => p / piSum);
+  return [0, 1].map(d => lam.reduce((s, l, i) => s + l * X[i][d], 0));
+}
+
 /** Cone for action a: { startAngle, endAngle, rays }.
  *  The set of w where action a is uniquely/jointly optimal. */
 export function computeCone(a, X) {

@@ -20,8 +20,10 @@ export function initUI({ onRecompute, onSyncField, onRender }) {
     'tog-field': 'withField',
     'tog-sim':   'withSim',
     'tog-bary':  'withBary',
-    'tog-hull':  'withHull',
-    'tog-proj':   'withProjections',
+    'tog-hull':     'withHull',
+    'tog-proj':     'withProjections',
+    'tog-hull-sub': 'withHullSub',
+    'tog-bary-sub': 'withBarySub',
   };
   for (const [id, key] of Object.entries(toggleMap)) {
     document.getElementById(id).addEventListener('change', e => {
@@ -33,8 +35,8 @@ export function initUI({ onRecompute, onSyncField, onRender }) {
   // ── Learning-rate slider (log₁₀ scale) ────────────────────────────────────
   const slLr  = document.getElementById('sl-lr');
   const valLr = document.getElementById('val-lr');
-  slLr.value = '1';  // log10(10) = 1
-  valLr.textContent = '10.0';
+  slLr.value = '-2';  // log10(0.01) = -2
+  valLr.textContent = '0.01';
   slLr.addEventListener('input', () => {
     const lr = Math.pow(10, parseFloat(slLr.value));
     state.lr = lr;
@@ -71,17 +73,20 @@ export function initUI({ onRecompute, onSyncField, onRender }) {
   });
 
   // ── Presets ───────────────────────────────────────────────────────────────
-  document.querySelectorAll('button.preset').forEach(btn => {
+  const presetContainer = document.getElementById('preset-btns');
+  for (const [key, p] of Object.entries(PRESETS)) {
+    const btn = document.createElement('button');
+    btn.className = 'preset';
+    btn.textContent = key;
     btn.addEventListener('click', () => {
-      const p = PRESETS[btn.dataset.preset];
-      if (!p) return;
       state.X  = p.X.map(x => x.slice());
       state.r  = p.r.slice();
       state.w0 = p.w0.slice();
       buildActionList({ onRecompute, onSyncField });
       onRecompute();
     });
-  });
+    presetContainer.appendChild(btn);
+  }
 
   // Build initial list
   buildActionList({ onRecompute, onSyncField });

@@ -23,24 +23,32 @@
         <span class="switch"><input type="checkbox" id="tog-cones" checked><span class="knob"></span></span>
       </label>
       <label class="toggle-row">
-        <span>Gradient field</span>
+        <span>Gradient field <span data-latex="\nabla_w V(w)"></span></span>
         <span class="switch"><input type="checkbox" id="tog-field" checked><span class="knob"></span></span>
       </label>
       <label class="toggle-row">
-        <span>PG trajectory</span>
+        <span>PG trajectory <span data-latex="(w_t)_{t \geq 0}"></span> </span>
         <span class="switch"><input type="checkbox" id="tog-sim" checked><span class="knob"></span></span>
       </label>
       <label class="toggle-row">
-        <span>Barycentric <span data-latex="\bar{x}(\pi_t)"></span></span>
+        <span>Barycentric <span data-latex="\bar{x}^\star_t"></span></span>
         <span class="switch"><input type="checkbox" id="tog-bary" checked><span class="knob"></span></span>
       </label>
       <label class="toggle-row">
-        <span>Conv. hull of opt. actions</span>
+        <span><span data-latex="\mathrm{conv}(\mathcal{A}^\star)"></span></span>
         <span class="switch"><input type="checkbox" id="tog-hull" checked><span class="knob"></span></span>
       </label>
       <label class="toggle-row">
         <span>Orthogonal projections</span>
         <span class="switch"><input type="checkbox" id="tog-proj" checked><span class="knob"></span></span>
+      </label>
+      <label class="toggle-row">
+        <span><span data-latex="\mathrm{conv}(\mathcal{A} \setminus \mathcal{A}^\star)"></span></span>
+        <span class="switch"><input type="checkbox" id="tog-hull-sub"><span class="knob"></span></span>
+      </label>
+      <label class="toggle-row">
+        <span>Barycentric <span data-latex="\bar{x}^-_t"></span></span>
+        <span class="switch"><input type="checkbox" id="tog-bary-sub"><span class="knob"></span></span>
       </label>
     </section>
 
@@ -48,8 +56,8 @@
       <h2>Simulation</h2>
       <div class="slider-row">
         <label for="sl-lr"><span data-latex="\eta"></span></label>
-        <input type="range" id="sl-lr" min="-2" max="2.5" step="0.05" value="1">
-        <output id="val-lr">10.0</output>
+        <input type="range" id="sl-lr" min="-3" max="0" step="0.05" value="-2">
+        <output id="val-lr">0.01</output>
       </div>
       <div class="slider-row">
         <label for="sl-steps"><span data-latex="T"></span></label>
@@ -70,19 +78,10 @@
 
     <section class="panel">
       <h2>Presets</h2>
-      <div class="btn-row">
-        <button class="preset" data-preset="intro">Intro</button>
-        <button class="preset" data-preset="viol-a2">Violate A2</button>
-        <button class="preset" data-preset="equil">Equil.</button>
-        <button class="preset" data-preset="x7">X7</button>
-        <button class="preset" data-preset="sep">Sep.</button>
-      </div>
+      <div class="btn-row" id="preset-btns"></div>
     </section>
 
-    <section class="panel">
-      <h2>Final state</h2>
-      <pre id="info-box">—</pre>
-    </section>
+
   </aside>
 
   <script src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js"></script>

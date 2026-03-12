@@ -12,7 +12,7 @@
  */
 import { state, computed } from './state.js';
 import { canvas, resize, w2c, c2w, scheduleRender } from './render.js';
-import { requestCompute, syncField, syncTrajectory, makeInfoText } from './compute.js';
+import { requestCompute, syncField, syncTrajectory } from './compute.js';
 import { initUI, updateCoordDisplay } from './ui.js';
 
 // ── KaTeX rendering ───────────────────────────────────────────────────────────
@@ -30,10 +30,10 @@ function triggerRecompute(delay = 80) {
   clearTimeout(_recomputeTimer);
   _recomputeTimer = setTimeout(() => {
     requestCompute(result => {
-      computed.field    = result.field    ?? computed.field;
-      computed.traj     = result.traj;
-      computed.baryTraj = result.baryTraj ?? null;
-      document.getElementById('info-box').textContent = makeInfoText();
+      computed.field       = result.field       ?? computed.field;
+      computed.traj        = result.traj;
+      computed.baryTraj    = result.baryTraj    ?? null;
+      computed.barySubTraj = result.barySubTraj ?? null;
       scheduleRender();
     });
   }, delay);
