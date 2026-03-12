@@ -5,9 +5,8 @@ export const PRESETS = {
 };
 
 export const state = {
-  X:        [[0,1],[-1,-1],[2,0],[2.5,-0.5]],   // X7 default
-  r:        [1,1,1,0],
-  w0:       [3,2],
+          X: [[0,1],[-1,-1],[2.5,-0.5]],   // X7 default
+ r: [1,1,0], w0: [3,-2],
   lr:       0.01,
   n_steps:  50000,
   withCones:       true,

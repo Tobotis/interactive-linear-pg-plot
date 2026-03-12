@@ -227,11 +227,6 @@ export function draw() {
       ctx.moveTo(bx, by-d); ctx.lineTo(bx+d, by);
       ctx.lineTo(bx, by+d); ctx.lineTo(bx-d, by);
       ctx.closePath(); ctx.fill(); ctx.stroke();
-      // Faint dashed line to w0 to visualise the coupling
-      const [wx, wy] = w2c(...w0);
-      ctx.strokeStyle='rgba(41,128,185,0.28)'; ctx.lineWidth=1; ctx.setLineDash([2,3]);
-      ctx.beginPath(); ctx.moveTo(wx,wy); ctx.lineTo(bx,by); ctx.stroke();
-      ctx.setLineDash([]);
     }
   }
 
