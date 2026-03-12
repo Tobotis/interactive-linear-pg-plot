@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Policy Gradient Landscape</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <div id="canvas-wrap">
+    <canvas id="canvas"></canvas>
+  </div>
+
+  <aside id="sidebar">
+    <h1>Policy Gradient Landscape</h1>
+
+    <section class="panel">
+      <h2>Display</h2>
+      <label class="toggle-row">
+        <span>Action cones</span>
+        <span class="switch"><input type="checkbox" id="tog-cones" checked><span class="knob"></span></span>
+      </label>
+      <label class="toggle-row">
+        <span>Gradient field</span>
+        <span class="switch"><input type="checkbox" id="tog-field" checked><span class="knob"></span></span>
+      </label>
+      <label class="toggle-row">
+        <span>PG trajectory</span>
+        <span class="switch"><input type="checkbox" id="tog-sim" checked><span class="knob"></span></span>
+      </label>
+      <label class="toggle-row">
+        <span>Barycentric <span data-latex="\bar{x}(\pi_t)"></span></span>
+        <span class="switch"><input type="checkbox" id="tog-bary" checked><span class="knob"></span></span>
+      </label>
+      <label class="toggle-row">
+        <span>Conv. hull of opt. actions</span>
+        <span class="switch"><input type="checkbox" id="tog-hull" checked><span class="knob"></span></span>
+      </label>
+      <label class="toggle-row">
+        <span>Orthogonal projections</span>
+        <span class="switch"><input type="checkbox" id="tog-proj" checked><span class="knob"></span></span>
+      </label>
+    </section>
+
+    <section class="panel">
+      <h2>Simulation</h2>
+      <div class="slider-row">
+        <label for="sl-lr"><span data-latex="\eta"></span></label>
+        <input type="range" id="sl-lr" min="-2" max="2.5" step="0.05" value="1">
+        <output id="val-lr">10.0</output>
+      </div>
+      <div class="slider-row">
+        <label for="sl-steps"><span data-latex="T"></span></label>
+        <input type="range" id="sl-steps" min="1000" max="200000" step="1000" value="50000">
+        <output id="val-steps">50k</output>
+      </div>
+      <p class="hint">White circle = <span data-latex="w_0"></span> (draggable)</p>
+    </section>
+
+    <section class="panel">
+      <h2>Actions <span class="sub">— drag on canvas</span></h2>
+      <div id="action-list"></div>
+      <div class="btn-row">
+        <button id="btn-add">+ Action</button>
+        <button id="btn-remove">− Action</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Presets</h2>
+      <div class="btn-row">
+        <button class="preset" data-preset="intro">Intro</button>
+        <button class="preset" data-preset="viol-a2">Violate A2</button>
+        <button class="preset" data-preset="equil">Equil.</button>
+        <button class="preset" data-preset="x7">X7</button>
+        <button class="preset" data-preset="sep">Sep.</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Final state</h2>
+      <pre id="info-box">—</pre>
+    </section>
+  </aside>
+
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js"></script>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
