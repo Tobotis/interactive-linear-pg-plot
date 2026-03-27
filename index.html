@@ -11,45 +11,112 @@
 
   <div id="canvas-wrap">
     <canvas id="canvas"></canvas>
+    <canvas id="graph-canvas"></canvas>
   </div>
 
   <aside id="sidebar">
     <h1>Policy Gradient Landscape</h1>
 
+    <section class="panel mode-panel" id="reward-mode-panel">
+      <h2>Reward Regime</h2>
+      <div class="mode-switch" id="reward-mode-switch">
+        <button type="button" class="mode-option active" id="mode-binary" data-mode="binary">Binary rewards</button>
+        <button type="button" class="mode-option" id="mode-arbitrary" data-mode="arbitrary">Arbitrary rewards</button>
+      </div>
+      <p class="mode-copy" id="reward-mode-copy">
+        Binary mode exposes the good/bad split, common-refinement cells, and the induced switching graph.
+      </p>
+    </section>
+
     <section class="panel">
       <h2>Display</h2>
-      <label class="toggle-row">
-        <span>Action cones</span>
-        <span class="switch"><input type="checkbox" id="tog-cones" checked><span class="knob"></span></span>
-      </label>
-      <label class="toggle-row">
-        <span>Gradient field <span data-latex="\nabla_w V(w)"></span></span>
-        <span class="switch"><input type="checkbox" id="tog-field" checked><span class="knob"></span></span>
-      </label>
-      <label class="toggle-row">
-        <span>PG trajectory <span data-latex="(w_t)_{t \geq 0}"></span> </span>
-        <span class="switch"><input type="checkbox" id="tog-sim" checked><span class="knob"></span></span>
-      </label>
-      <label class="toggle-row">
-        <span>Barycentric <span data-latex="\bar{x}^\star_t"></span><span class="info-icon">i<span class="info-popup"><span data-latex="\bar{x}^\star_t = \sum_{a \in \mathcal{A}^\star} \frac{\pi_t(a)}{\sum_{b \in \mathcal{A}^\star}\pi_t(b)}\, x_a"></span></span></span></span>
-        <span class="switch"><input type="checkbox" id="tog-bary" checked><span class="knob"></span></span>
-      </label>
-      <label class="toggle-row">
-        <span><span data-latex="\mathrm{conv}(\mathcal{A}^\star)"></span></span>
-        <span class="switch"><input type="checkbox" id="tog-hull" checked><span class="knob"></span></span>
-      </label>
-      <label class="toggle-row">
-        <span>Orthogonal projections</span>
-        <span class="switch"><input type="checkbox" id="tog-proj" checked><span class="knob"></span></span>
-      </label>
-      <label class="toggle-row">
-        <span><span data-latex="\mathrm{conv}(\mathcal{A} \setminus \mathcal{A}^\star)"></span></span>
-        <span class="switch"><input type="checkbox" id="tog-hull-sub"><span class="knob"></span></span>
-      </label>
-      <label class="toggle-row">
-        <span>Barycentric <span data-latex="\bar{x}^-_t"></span><span class="info-icon">i<span class="info-popup"><span data-latex="\bar{x}^-_t = \sum_{a \notin \mathcal{A}^\star} \frac{\pi_t(a)}{\sum_{b \notin \mathcal{A}^\star}\pi_t(b)}\, x_a"></span></span></span></span>
-        <span class="switch"><input type="checkbox" id="tog-bary-sub"><span class="knob"></span></span>
-      </label>
+      <div class="display-group">
+        <h3 class="group-title">Direction-Space Geometry</h3>
+        <label class="toggle-row">
+          <span><strong>Cone background</strong><span class="toggle-copy">Draw direction-space sectors behind the main parameter plot.</span></span>
+          <span class="switch"><input type="checkbox" id="tog-cone-bg" checked><span class="knob"></span></span>
+        </label>
+        <div class="sub-toggle-block binary-only-block" id="binary-cone-block">
+          <label class="toggle-row sub-toggle-row">
+            <span><strong>Good cones</strong><span class="toggle-copy">Show the normal cones attached to vertices of the good hull.</span></span>
+            <span class="switch"><input type="checkbox" id="tog-good-cones"><span class="knob"></span></span>
+          </label>
+          <label class="toggle-row sub-toggle-row">
+            <span><strong>Bad cones</strong><span class="toggle-copy">Show the normal cones attached to vertices of the bad hull.</span></span>
+            <span class="switch"><input type="checkbox" id="tog-bad-cones"><span class="knob"></span></span>
+          </label>
+          <label class="toggle-row sub-toggle-row">
+            <span><strong>Cell intersections</strong><span class="toggle-copy">Show the common-refinement cells where a good cone and bad cone overlap.</span></span>
+            <span class="switch"><input type="checkbox" id="tog-cells" checked><span class="knob"></span></span>
+          </label>
+        </div>
+        <label class="toggle-row">
+          <span><strong>Difference cone</strong><span class="toggle-copy">Show boundary rays for <span data-latex="\mathrm{conv}(\mathcal{A}^\star) - \mathrm{conv}(\mathcal{A}{\setminus}\mathcal{A}^\star)"></span>.</span></span>
+          <span class="switch"><input type="checkbox" id="tog-diff-cone"><span class="knob"></span></span>
+        </label>
+        <div class="binary-only-group" id="binary-graph-group">
+          <label class="toggle-row">
+            <span><strong>Cell graph</strong><span class="toggle-copy">Draw the finite transition graph induced by the cell drift directions.</span></span>
+            <span class="switch"><input type="checkbox" id="tog-graph" checked><span class="knob"></span></span>
+          </label>
+          <label class="toggle-row">
+            <span><strong>Only self-consistent cells</strong><span class="toggle-copy">Restrict attention to cells whose drift points back into the same cell.</span></span>
+            <span class="switch"><input type="checkbox" id="tog-self-only"><span class="knob"></span></span>
+          </label>
+          <label class="toggle-row">
+            <span><strong>Only selected outgoing edge</strong><span class="toggle-copy">In the graph, keep only the transition leaving the hovered or selected cell.</span></span>
+            <span class="switch"><input type="checkbox" id="tog-selected-edge"><span class="knob"></span></span>
+          </label>
+          <label class="toggle-row">
+            <span><strong>Show ambiguous cells</strong><span class="toggle-copy">Include boundary or tie cases instead of suppressing them.</span></span>
+            <span class="switch"><input type="checkbox" id="tog-ambiguous" checked><span class="knob"></span></span>
+          </label>
+          <div class="select-row">
+            <label for="sel-drift-mode">Drift vectors</label>
+            <select id="sel-drift-mode">
+              <option value="none">None</option>
+              <option value="selected" selected>Selected only</option>
+              <option value="all">All</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="display-group">
+        <h3 class="group-title">Dynamics In Parameter Space</h3>
+        <label class="toggle-row">
+          <span><strong>Gradient field</strong><span class="toggle-copy">Sample the vector field <span data-latex="\nabla_w V(w)"></span> across the parameter plane.</span></span>
+          <span class="switch"><input type="checkbox" id="tog-field" checked><span class="knob"></span></span>
+        </label>
+        <label class="toggle-row">
+          <span><strong>PG trajectory</strong><span class="toggle-copy">Draw the discrete policy-gradient iterate path <span data-latex="(w_t)_{t \geq 0}"></span>.</span></span>
+          <span class="switch"><input type="checkbox" id="tog-sim" checked><span class="knob"></span></span>
+        </label>
+      </div>
+      <div class="display-group">
+        <h3 class="group-title">Feature-Space Overlays</h3>
+        <label class="toggle-row">
+          <span><strong>Barycentric optimal path</strong><span class="toggle-copy">Track the induced feature-space point <span data-latex="\bar{x}^\star_t"></span> supported on optimal actions.</span><span class="info-icon">i<span class="info-popup"><span data-latex="\bar{x}^\star_t = \sum_{a \in \mathcal{A}^\star} \frac{\pi_t(a)}{\sum_{b \in \mathcal{A}^\star}\pi_t(b)}\, x_a"></span></span></span></span>
+          <span class="switch"><input type="checkbox" id="tog-bary" checked><span class="knob"></span></span>
+        </label>
+        <label class="toggle-row">
+          <span><strong>Barycentric bad path</strong><span class="toggle-copy">Track the induced feature-space point <span data-latex="\bar{x}^-_t"></span> supported on non-optimal actions.</span><span class="info-icon">i<span class="info-popup"><span data-latex="\bar{x}^-_t = \sum_{a \notin \mathcal{A}^\star} \frac{\pi_t(a)}{\sum_{b \notin \mathcal{A}^\star}\pi_t(b)}\, x_a"></span></span></span></span>
+          <span class="switch"><input type="checkbox" id="tog-bary-sub"><span class="knob"></span></span>
+        </label>
+        <label class="toggle-row">
+          <span><strong>Optimal hull</strong><span class="toggle-copy">Outline <span data-latex="\mathrm{conv}(\mathcal{A}^\star)"></span> in feature space.</span></span>
+          <span class="switch"><input type="checkbox" id="tog-hull" checked><span class="knob"></span></span>
+        </label>
+        <label class="toggle-row">
+          <span><strong>Suboptimal hull</strong><span class="toggle-copy">Outline <span data-latex="\mathrm{conv}(\mathcal{A} \setminus \mathcal{A}^\star)"></span>.</span></span>
+          <span class="switch"><input type="checkbox" id="tog-hull-sub"><span class="knob"></span></span>
+        </label>
+        <label class="toggle-row">
+          <span><strong>Orthogonal projections</strong><span class="toggle-copy">Project non-optimal points onto the edges of the optimal hull.</span></span>
+          <span class="switch"><input type="checkbox" id="tog-proj"><span class="knob"></span></span>
+        </label>
+      </div>
+      <p class="hint">Drift vectors are the cell-wise directions <span data-latex="d_{a,b} = x_a - x_b"></span> that define the switching map.</p>
+      <p class="hint" id="binary-tools-note">Cells and the induced graph require binary good/bad rewards.</p>
     </section>
 
     <section class="panel">
@@ -73,6 +140,7 @@
       <div class="btn-row">
         <button id="btn-add">+ Action</button>
         <button id="btn-remove">− Action</button>
+        <button id="btn-copy-actions" title="Copy positions and rewards to clipboard">Copy</button>
       </div>
     </section>
 

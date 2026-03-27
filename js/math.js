@@ -12,6 +12,9 @@ export const vadd   = (a, b) => a.map((v, i) => v + b[i]);
 export const vscale = (a, k) => a.map(v => v * k);
 export const vnorm  = a      => Math.sqrt(a.reduce((s, v) => s + v * v, 0));
 
+export const GEOM_EPS = 1e-6;
+export const ANGLE_EPS = 0.03;
+
 /** Policy-gradient ∇_w V(w) = Xᵀ diag(π)(r − V(π)𝟏) */
 export function pgGrad(X, r, w) {
   const pi  = softmax(X.map(x => dot(x, w)));
@@ -138,4 +141,189 @@ export function convexHull(pts) {
   }
   lower.pop(); upper.pop();
   return [...lower, ...upper];
+}
+
+export function normalizeAngle(theta) {
+  let a = theta % (2 * Math.PI);
+  if (a < 0) a += 2 * Math.PI;
+  return a;
+}
+
+export function angleInInterval(theta, start, end, eps = ANGLE_EPS) {
+  const a = normalizeAngle(theta);
+  const s = normalizeAngle(start);
+  const span = ((end - start) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
+  if (span >= 2 * Math.PI - eps) return true;
+  const rel = ((a - s) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
+  return rel > eps && rel < span - eps || Math.abs(rel) <= eps || Math.abs(rel - span) <= eps;
+}
+
+export function angleDistanceToBoundary(theta, start, end) {
+  const span = ((end - start) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
+  const rel = ((normalizeAngle(theta) - normalizeAngle(start)) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
+  if (rel <= span) return Math.min(rel, span - rel);
+  return Math.min(rel - span, 2 * Math.PI - rel);
+}
+
+function coneToInterval(cone) {
+  if (!cone || cone.fullCircle) return { fullCircle: true, start: 0, end: 2 * Math.PI };
+  if (cone.startAngle === undefined || cone.endAngle === undefined) return null;
+  const start = normalizeAngle(cone.startAngle);
+  const span = ((cone.endAngle - cone.startAngle) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
+  if (span >= 2 * Math.PI - GEOM_EPS) return { fullCircle: true, start: 0, end: 2 * Math.PI };
+  return { fullCircle: false, start, end: start + span };
+}
+
+function intersectConeIntervals(a, b) {
+  if (!a || !b) return null;
+  if (a.fullCircle) return { start: b.start, end: b.end };
+  if (b.fullCircle) return { start: a.start, end: a.end };
+  for (const shift of [-2 * Math.PI, 0, 2 * Math.PI]) {
+    const start = Math.max(a.start, b.start + shift);
+    const end = Math.min(a.end, b.end + shift);
+    if (end - start > GEOM_EPS) return { start, end };
+  }
+  return null;
+}
+
+function hullVerticesWithIds(X, ids) {
+  const pts = ids.map(id => X[id]);
+  if (pts.length <= 2) return ids.map(id => ({ id, point: X[id] }));
+  const hull = convexHull(pts);
+  return hull.map(point => ({ id: ids.find(id => X[id] === point), point }));
+}
+
+
+function makeConeForGroup(vertexId, groupIds, X) {
+  if (groupIds.length <= 1) return { fullCircle: true, rays: [] };
+  const groupPoints = groupIds.map(id => X[id]);
+  const localIndex = groupIds.indexOf(vertexId);
+  return computeCone(localIndex, groupPoints);
+}
+
+export function classifyRewardMode(r) {
+  return r.every(v => Math.abs(v) <= GEOM_EPS || Math.abs(v - 1) <= GEOM_EPS)
+    ? 'binary'
+    : 'arbitrary';
+}
+
+export function computeBinaryRefinement(X, r) {
+  const goodIds = [];
+  const badIds = [];
+  r.forEach((rv, i) => ((rv > 0.5) ? goodIds : badIds).push(i));
+  const enabled = goodIds.length > 0 && badIds.length > 0;
+  if (!enabled) {
+    return {
+      enabled: false,
+      reason: 'Need at least one good and one bad action.',
+      goodIds,
+      badIds,
+      goodVertices: [],
+      badVertices: [],
+      cells: [],
+      transitions: [],
+    };
+  }
+
+  const goodVertices = hullVerticesWithIds(X, goodIds).map(v => ({
+    ...v,
+    cone: makeConeForGroup(v.id, goodIds, X),
+  }));
+  const badVertices = hullVerticesWithIds(X, badIds).map(v => ({
+    ...v,
+    cone: makeConeForGroup(v.id, badIds, X),
+  }));
+
+  const cells = [];
+  for (const gv of goodVertices) {
+    const gInterval = coneToInterval(gv.cone);
+    for (const bv of badVertices) {
+      const bInterval = coneToInterval(bv.cone);
+      const hit = intersectConeIntervals(gInterval, bInterval);
+      if (!hit) continue;
+      const driftVector = [X[gv.id][0] - X[bv.id][0], X[gv.id][1] - X[bv.id][1]];
+      const driftNorm = vnorm(driftVector);
+      const driftAngle = driftNorm < GEOM_EPS ? null : normalizeAngle(Math.atan2(driftVector[1], driftVector[0]));
+      cells.push({
+        key: `${gv.id}-${bv.id}`,
+        goodVertexId: gv.id,
+        badVertexId: bv.id,
+        angleStart: hit.start,
+        angleEnd: hit.end,
+        angleMid: 0.5 * (hit.start + hit.end),
+        angleSpan: hit.end - hit.start,
+        isDegenerate: hit.end - hit.start < ANGLE_EPS,
+        driftVector,
+        driftNorm,
+        driftAngle,
+      });
+    }
+  }
+
+  const byPair = new Map();
+  for (const cell of cells) {
+    const key = `${cell.goodVertexId}-${cell.badVertexId}`;
+    const list = byPair.get(key) ?? [];
+    list.push(cell);
+    byPair.set(key, list);
+  }
+
+  // Sort cells by their starting angle to establish circular adjacency.
+  // Cells are ordered counterclockwise; "right" = next in sorted order.
+  const sortedByAngle = [...cells].sort(
+    (a, b) => normalizeAngle(a.angleStart) - normalizeAngle(b.angleStart));
+  const sortedIndex = new Map(sortedByAngle.map((c, i) => [c.key, i]));
+  const N = sortedByAngle.length;
+
+  const transitions = cells.map(cell => {
+    const ambiguous = cell.driftNorm < GEOM_EPS || cell.driftAngle == null;
+    let targetPair = null;
+    let targetCellKey = null;
+    let inside = false;
+
+    if (!ambiguous) {
+      inside = angleInInterval(cell.driftAngle, cell.angleStart, cell.angleEnd, ANGLE_EPS);
+      if (inside) {
+        // gamma ∈ (alpha, beta): stay in current cell
+        targetCellKey = cell.key;
+        targetPair = { goodVertexId: cell.goodVertexId, badVertexId: cell.badVertexId };
+      } else {
+        // Determine direction: compare gamma to [alpha, beta] on the circle.
+        // rel measures how far gamma is from alpha, going counterclockwise.
+        // span measures the cell's angular width.
+        // The exterior arc midpoint is at rel = π + span/2;
+        // rel ∈ (span, π+span/2) → gamma is past beta  → go right (next cell),
+        // rel ∈ (π+span/2, 2π) → gamma is before alpha → go left (prev cell).
+        const s    = normalizeAngle(cell.angleStart);
+        const span = (normalizeAngle(cell.angleEnd) - s + 2 * Math.PI) % (2 * Math.PI);
+        const rel  = (normalizeAngle(cell.driftAngle) - s + 2 * Math.PI) % (2 * Math.PI);
+        const goRight = N > 1 && rel > span && rel < Math.PI + span / 2;
+        const idx = sortedIndex.get(cell.key);
+        const neighborIdx = goRight ? (idx + 1) % N : (idx - 1 + N) % N;
+        const neighbor = sortedByAngle[neighborIdx];
+        targetCellKey = neighbor.key;
+        targetPair = { goodVertexId: neighbor.goodVertexId, badVertexId: neighbor.badVertexId };
+      }
+    }
+
+    const boundaryLike = ambiguous || cell.driftAngle == null ||
+      angleDistanceToBoundary(cell.driftAngle ?? cell.angleStart, cell.angleStart, cell.angleEnd) < ANGLE_EPS;
+    return {
+      ...cell,
+      targetPair,
+      targetCellKey,
+      ambiguous,
+      classification: boundaryLike ? 'boundary' : (inside ? 'trap' : 'exit'),
+    };
+  });
+
+  return {
+    enabled: true,
+    goodIds,
+    badIds,
+    goodVertices,
+    badVertices,
+    cells: transitions,
+    transitions,
+  };
 }
