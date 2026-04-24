@@ -104,13 +104,13 @@ export function buildActionList({ onRecompute, onSyncField }) {
       <span class="action-label">x<sub>${k+1}</sub></span>
       <span class="action-coord" id="coord-${k}">[${x[0].toFixed(2)}, ${x[1].toFixed(2)}]</span>
       <span class="action-r-wrap">
-        r&nbsp;=&nbsp;<input class="action-r-input" type="number" id="r-${k}"
-          value="${state.r[k]}" step="0.5">
+        r&nbsp;=&nbsp;<input class="action-r-input" type="checkbox" id="r-${k}"
+          ${state.r[k] ? 'checked' : ''}>
       </span>
     `;
     container.appendChild(row);
-    document.getElementById(`r-${k}`).addEventListener('input', e => {
-      state.r[k] = parseFloat(e.target.value) || 0;
+    document.getElementById(`r-${k}`).addEventListener('change', e => {
+      state.r[k] = e.target.checked ? 1 : 0;
       onSyncField();
       onRecompute();
     });
