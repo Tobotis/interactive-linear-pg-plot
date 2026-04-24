@@ -11,7 +11,7 @@
  *   - After dragging settles (80 ms debounce) a fresh worker request is sent
  */
 import { state, computed } from './state.js';
-import { canvas, graphCanvas, resize, w2c, c2w, scheduleRender, hitTestInteractive, hitTestGraphInteractive } from './render.js';
+import { canvas, resize, w2c, c2w, scheduleRender } from './render.js';
 import { requestCompute, syncField, syncTrajectory } from './compute.js';
 import { initUI, updateCoordDisplay } from './ui.js';
 
@@ -70,14 +70,6 @@ function getXY(e) {
   return [(src.clientX - rect.left) * sx, (src.clientY - rect.top) * sy];
 }
 
-function getCanvasXY(targetCanvas, e) {
-  const rect = targetCanvas.getBoundingClientRect();
-  const src  = e.touches ? e.touches[0] : e;
-  const sx   = parseFloat(targetCanvas.style.width) / rect.width;
-  const sy   = parseFloat(targetCanvas.style.height) / rect.height;
-  return [(src.clientX - rect.left) * sx, (src.clientY - rect.top) * sy];
-}
-
 function hitTest(cx, cy) {
   // Feature points
   for (let k = 0; k < state.X.length; k++) {
@@ -95,13 +87,7 @@ function hitTest(cx, cy) {
 function onPointerDown(e) {
   const [cx, cy] = getXY(e);
   dragging = hitTest(cx, cy);
-  if (dragging) {
-    canvas.classList.add('dragging');
-    return;
-  }
-  const hit = hitTestInteractive(cx, cy);
-  state.selectedCellKey = hit?.cellKey ?? hit?.sourceKey ?? null;
-  scheduleRender();
+  if (dragging) canvas.classList.add('dragging');
 }
 
 function onPointerMove(e) {
@@ -117,12 +103,7 @@ function onPointerMove(e) {
     }
     onDragUpdate();
   } else {
-    const dragHit = hitTest(cx, cy);
-    const hoverHit = hitTestInteractive(cx, cy);
-    const hoverChanged = JSON.stringify(state.hover) !== JSON.stringify(hoverHit);
-    state.hover = hoverHit;
-    canvas.style.cursor = dragHit ? 'grab' : (hoverHit ? 'pointer' : 'crosshair');
-    if (hoverChanged) scheduleRender();
+    canvas.style.cursor = hitTest(cx, cy) ? 'grab' : 'crosshair';
   }
 }
 
@@ -134,36 +115,6 @@ function onPointerUp() {
     triggerRecompute(0);
   }
 }
-
-canvas.addEventListener('mouseleave', () => {
-  if (state.hover) {
-    state.hover = null;
-    scheduleRender();
-  }
-});
-
-graphCanvas.addEventListener('mousemove', e => {
-  const [cx, cy] = getCanvasXY(graphCanvas, e);
-  const hoverHit = hitTestGraphInteractive(cx, cy);
-  const hoverChanged = JSON.stringify(state.hover) !== JSON.stringify(hoverHit);
-  state.hover = hoverHit;
-  graphCanvas.style.cursor = hoverHit ? 'pointer' : 'default';
-  if (hoverChanged) scheduleRender();
-});
-
-graphCanvas.addEventListener('mousedown', e => {
-  const [cx, cy] = getCanvasXY(graphCanvas, e);
-  const hit = hitTestGraphInteractive(cx, cy);
-  state.selectedCellKey = hit?.cellKey ?? hit?.sourceKey ?? null;
-  scheduleRender();
-});
-
-graphCanvas.addEventListener('mouseleave', () => {
-  if (state.hover) {
-    state.hover = null;
-    scheduleRender();
-  }
-});
 
 const clamp = v => Math.max(-4, Math.min(4, v));
 
