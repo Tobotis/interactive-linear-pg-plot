@@ -44,6 +44,13 @@ h1 {
   font-size: 14.5px;
   font-weight: normal;
   letter-spacing: 0.02em;
+  padding-bottom: 4px;
+}
+
+.author {
+  font-size: 10.5px;
+  color: #888;
+  font-style: italic;
   border-bottom: 1px solid #ddd;
   padding-bottom: 8px;
 }
