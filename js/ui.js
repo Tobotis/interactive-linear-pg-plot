@@ -112,9 +112,9 @@ export function buildActionList({ onRecompute, onSyncField }) {
       </span>
     `;
     container.appendChild(row);
+    const xInput = document.getElementById(`coord-x-${k}`);
+    const yInput = document.getElementById(`coord-y-${k}`);
     const onCoordChange = () => {
-      const xInput = document.getElementById(`coord-x-${k}`);
-      const yInput = document.getElementById(`coord-y-${k}`);
       if (!xInput || !yInput) return;
       const xVal = _clampCoord(_parseCoord(xInput.value, state.X[k][0]));
       const yVal = _clampCoord(_parseCoord(yInput.value, state.X[k][1]));
@@ -124,8 +124,8 @@ export function buildActionList({ onRecompute, onSyncField }) {
       onSyncField();
       onRecompute();
     };
-    document.getElementById(`coord-x-${k}`).addEventListener('change', onCoordChange);
-    document.getElementById(`coord-y-${k}`).addEventListener('change', onCoordChange);
+    if (xInput) xInput.addEventListener('change', onCoordChange);
+    if (yInput) yInput.addEventListener('change', onCoordChange);
     document.getElementById(`r-${k}`).addEventListener('change', e => {
       state.r[k] = e.target.checked ? 1 : 0;
       onSyncField();
@@ -144,7 +144,9 @@ export function updateCoordDisplay() {
 }
 
 const _stepsLabel = n => n >= 1000 ? (n/1000).toFixed(0) + 'k' : String(n);
-const _clampCoord = v => Math.max(-4, Math.min(4, v));
+const MIN_COORD = -4;
+const MAX_COORD = 4;
+const _clampCoord = v => Math.max(MIN_COORD, Math.min(MAX_COORD, v));
 const _parseCoord = (raw, fallback) => {
   const value = Number.parseFloat(raw);
   return Number.isFinite(value) ? value : fallback;
