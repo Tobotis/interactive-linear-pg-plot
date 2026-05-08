@@ -115,7 +115,6 @@ export function buildActionList({ onRecompute, onSyncField }) {
     const xInput = document.getElementById(`coord-x-${k}`);
     const yInput = document.getElementById(`coord-y-${k}`);
     const onCoordChange = () => {
-      if (!xInput || !yInput) return;
       const xVal = _clampCoord(_parseCoord(xInput.value, state.X[k][0]));
       const yVal = _clampCoord(_parseCoord(yInput.value, state.X[k][1]));
       state.X[k] = [xVal, yVal];
