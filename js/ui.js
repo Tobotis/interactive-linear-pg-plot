@@ -102,13 +102,29 @@ export function buildActionList({ onRecompute, onSyncField }) {
     row.innerHTML = `
       <span class="action-dot" style="background:${color}"></span>
       <span class="action-label">x<sub>${k+1}</sub></span>
-      <span class="action-coord" id="coord-${k}">[${x[0].toFixed(2)}, ${x[1].toFixed(2)}]</span>
+      <span class="action-coord">
+        [<input class="action-coord-input" type="number" step="0.01" id="coord-x-${k}" value="${x[0].toFixed(2)}">,
+        <input class="action-coord-input" type="number" step="0.01" id="coord-y-${k}" value="${x[1].toFixed(2)}">]
+      </span>
       <span class="action-r-wrap">
         r&nbsp;=&nbsp;<input class="action-r-input" type="checkbox" id="r-${k}"
           ${state.r[k] ? 'checked' : ''}>
       </span>
     `;
     container.appendChild(row);
+    const xInput = document.getElementById(`coord-x-${k}`);
+    const yInput = document.getElementById(`coord-y-${k}`);
+    const onCoordChange = () => {
+      const xVal = _clampCoord(_parseCoord(xInput.value, state.X[k][0]));
+      const yVal = _clampCoord(_parseCoord(yInput.value, state.X[k][1]));
+      state.X[k] = [xVal, yVal];
+      xInput.value = xVal.toFixed(2);
+      yInput.value = yVal.toFixed(2);
+      onSyncField();
+      onRecompute();
+    };
+    if (xInput) xInput.addEventListener('change', onCoordChange);
+    if (yInput) yInput.addEventListener('change', onCoordChange);
     document.getElementById(`r-${k}`).addEventListener('change', e => {
       state.r[k] = e.target.checked ? 1 : 0;
       onSyncField();
@@ -119,9 +135,18 @@ export function buildActionList({ onRecompute, onSyncField }) {
 
 export function updateCoordDisplay() {
   state.X.forEach((x, k) => {
-    const el = document.getElementById(`coord-${k}`);
-    if (el) el.textContent = `[${x[0].toFixed(2)}, ${x[1].toFixed(2)}]`;
+    const xInput = document.getElementById(`coord-x-${k}`);
+    const yInput = document.getElementById(`coord-y-${k}`);
+    if (xInput) xInput.value = x[0].toFixed(2);
+    if (yInput) yInput.value = x[1].toFixed(2);
   });
 }
 
 const _stepsLabel = n => n >= 1000 ? (n/1000).toFixed(0) + 'k' : String(n);
+const MIN_COORD = -4;
+const MAX_COORD = 4;
+const _clampCoord = v => Math.max(MIN_COORD, Math.min(MAX_COORD, v));
+const _parseCoord = (raw, fallback) => {
+  const value = Number.parseFloat(raw);
+  return Number.isFinite(value) ? value : fallback;
+};
